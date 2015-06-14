@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Game Snake</title>
+    <meta charset="UTF-8">
+</head>
+<body onkeypress="moving(event)">
+<canvas id="canvas" width="600" height="500" style="border:double"></canvas>
+<form>
+    <label for="level">Snake speed: Fast</label><input id="level" type="range" name="points" min="50" max="400"><label for="level"> Slow</label>
+</form>
+
+<button style="float:right" onclick="stop()">Stop Game</button>
+<button style="float:right" onclick="start()">Start Game</button>
+
+<script>
+
+    var score = 0;
+    var level = 200;
+    var direction = "down";
+    var startPositionX = 0;
+    var startPositionY = 60;
+    var length = 6;
+    var foodsLength = 6;
+    var count = 0;
+    var canvas = document.getElementById("canvas");
+    var ctx = canvas.getContext("2d");
+
+    function moving(ev) {
+        switch (ev.keyCode) {
+            case 37:
+                if ((direction != "left") && (direction != "right")) {
+                    direction = "left";
+                }
+                break;
+            case 38:
+                if ((direction != "up") && (direction != "down")) {
+                    direction = "up";
+                }
+                break;
+            case 40:
+                if ((direction != "down") && (direction != "up")) {
+                    direction = "down";
+                }
+                break;
+            case 39:
+                if ((direction != "right") && (direction != "left")) {
+                    direction = "right";
+                }
+            default:
+                break;
+        }
+    }
+
+    var SnakePart = function (positionX, positionY) {
+        this.positionX = positionX;
+        this.positionY = positionY;
+    };
+    SnakePart.prototype.paint = function () {
+        ctx.beginPath();
+        ctx.rect(this.positionX, this.positionY, 20, 20);
+        ctx.fillStyle = "red";
+        ctx.fill();
+        ctx.closePath();
+    };
+    SnakePart.prototype.paintHead = function () {
+        ctx.beginPath();
+        ctx.rect(this.positionX, this.positionY, 20, 20);
+        ctx.fillStyle = "green";
+        ctx.fill();
+        ctx.closePath();
+    };
+
+    var Food = function () {
+        var self = this;
+        self.positionX = Math.floor((Math.random() * 500));
+        self.positionY = Math.floor((Math.random() * 500));
+    };
+    Food.prototype.remove = function () {
+        var startPositionX = this.positionX - 25;
+        var startPositionY = this.positionY - 25;
+        ctx.clearRect(startPositionX, startPositionY, 50, 50);
+    };
+
+    var Foods = function (count) {
+        var self = this;
+        self.body = new Array(0);
+        self.count = count;
+        return self;
+    };
+    Foods.prototype.add = function(food){
+        var index = this.body.length;
+        this.body[index] = food;
+    };
+    Foods.prototype.remove = function (index) {
+        var startPositionX = this.body[index].positionX - 25;
+        var startPositionY = this.body[index].positionY - 25;
+        ctx.clearRect(startPositionX, startPositionY, 50, 50);
+    };
+    Foods.prototype.paint = function(){
+        for(var i = 0; i < this.body.length; i++){
+            var food = this.body[i];
+            ctx.beginPath();
+            ctx.arc(food.positionX, food.positionY, 5, 0, Math.PI * 2);
+            ctx.fillStyle = "skyblue";
+            ctx.fill();
+            ctx.stroke();
+            ctx.closePath();
+        }
+    };
+
+    var Snake = function (length, startPositionX, startPositionY) {
+        var self = this;
+        self.body = new Array(5);
+        var indexY = 0;
+        for(var i = 0; i < self.body.length; i++){
+            var snakePart = new SnakePart(startPositionX, startPositionY + indexY)
+            self.body[i] = snakePart;
+            indexY +=10;
+        }
+        return self;
+    };
+    Snake.prototype.addPart = function (snakePart) {
+        var index = this.body.length;
+        this.body[index] = snakePart;
+    };
+    Snake.prototype.removePart = function () {
+        var positionX = this.body[0].positionX;
+        var positionY = this.body[0].positionY;
+        ctx.clearRect(positionX, positionY, 20, 20);
+        var index = 0;
+        this.body.splice(index,1);
+    };
+    Snake.prototype.paintSnake = function () {
+        this.body[this.body.length - 2].paintHead();
+        for (var i = 0; i < this.body.length - 2; i++) {
+            if (this.body[i] != undefined) {
+                this.body[i].paint();
+            }
+        }
+    };
+
+    function checkIfSnakeEatSelf(snake, positionX, positionY){
+        var result = false;
+        for(var i =0; i < snake.body.length; i++){
+            var snakePart = snake.body[i];
+            if(snakePart.positionX === positionX && snakePart.positionY === positionY){
+                result = true;
+                return result;
+            }
+        }
+        return result;
+    }
+
+    var checkForCollision = function (objSnake, objFood) {
+        var collision = false;
+        var positionXSnakeHead = objSnake.body[objSnake.body.length - 2].positionX - 10;
+        var positionYSnakeHead = objSnake.body[objSnake.body.length - 2].positionY - 10;
+        for (var i = 0; i < objFood.body.length; i++) {
+            var currentFoodPositionX = objFood.body[i].positionX;
+            var currentFoodPositionY = objFood.body[i].positionY;
+
+            if (currentFoodPositionX >= positionXSnakeHead
+                    && currentFoodPositionX <= (positionXSnakeHead + 40)
+                    && currentFoodPositionY >= positionYSnakeHead
+                    && currentFoodPositionY <= (positionYSnakeHead + 40)) {
+
+                objFood.remove(i);
+                objFood.body.splice( i, 1);
+
+                objSnake.addPart(new SnakePart(snake.body[snake.body.length - 1].positionX, snake.body[snake.body.length - 1].positionY));
+
+                score += 100;
+                break;
+            }
+        }
+    };
+
+    var Engine = function (snake, foods) {
+        var self = this;
+        self.snake = snake;
+        self.foods = foods;
+        return self;
+
+    };
+    Engine.prototype.moving = function moving(direction, snake) {
+        var snakePositionX = snake.body[snake.body.length - 1].positionX;
+        var snakePositionY = snake.body[snake.body.length - 1].positionY;
+        switch (direction) {
+            case "left":
+                snakePositionX -= 20;
+                if (snakePositionX < 0) {
+                    stop(score);
+                }
+                break;
+            case "up":
+                snakePositionY -= 20;
+                if (snakePositionY < 0) {
+                    stop(score);
+                }
+                break;
+            case "down":
+                snakePositionY += 20;
+                if (snakePositionY > canvas.height) {
+                    stop(score);
+                }
+                break;
+            case "right":
+                snakePositionX += 20;
+                if (snakePositionX > canvas.width) {
+                    stop(score);
+                }
+                break;
+            default:
+        }
+        var haveCollision = checkIfSnakeEatSelf(snake, snakePositionX, snakePositionY);
+        if(haveCollision){
+            stop(score);
+        }
+        snake.body[snake.body.length - 1].positionX = snakePositionX;
+        snake.body[snake.body.length - 1].positionY = snakePositionY;
+    };
+    Engine.prototype.play = function () {
+        this.moving(direction, this.snake);
+        var snakePart = new SnakePart(snake.body[snake.body.length - 1].positionX, snake.body[snake.body.length - 1].positionY);
+        this.snake.addPart(snakePart);
+        this.snake.paintSnake();
+        this.snake.removePart();
+        if (this.foods.count == 15) {
+
+            var food = new Food();
+            var haveCollision = false;
+
+            do{
+                for(var i = 0; i < this.snake.body.length; i++){
+                    var snakePart = this.snake.body[i];
+                    if(food.positionX < snakePart.positionX -5
+                    || food.positionX > snakePart.positionX + 5
+                    && food.positionY < snakePart.positionY - 5
+                    || food.positionY > snakePart.positionY + 5){
+                        haveCollision = false;
+                    }else{
+                        haveCollision = true;
+                        break;
+                    }
+                }
+                if(haveCollision){
+                    food = new Food();
+                }
+            }while(haveCollision);
+
+            this.foods.count = 0;
+            this.foods.add(food);
+            this.foods.paint();
+        }
+        this.foods.count++;
+        checkForCollision(this.snake, this.foods);
+    };
+
+    var snake = new Snake(length, 0, 0);
+    var foods = new Foods(count);
+    var e = new Engine(snake, foods);
+
+    function stop(score) {
+        alert("You score is: " + score + " points");
+        location.reload(true);
+    }
+
+    function start() {
+        level = document.getElementById('level').valueAsNumber;
+        var myTimer =  setInterval("e.play()", level);
+        myTimer;
+    }
+
+</script>
+</body>
+</html>
