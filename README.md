@@ -1,0 +1,1 @@
+This is the popular game Snake written on JavaScript in 2014 an run under Mozzila Firefox browser. For graphic interface is used "canvas" tag from HTML5
